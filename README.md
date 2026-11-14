@@ -50,3 +50,17 @@ Every histogram is exported with buckets, never as a summary. Names ending in
 Label values must come from small fixed sets: a route template, a query name,
 a job name, an outcome. Never use an ID, a customer, a path, or free text.
 Every distinct value is a new time series that Prometheus keeps.
+
+### Jobs
+
+```rust,ignore
+let run = JobRun::start("floor_and_decor_sync");
+let outcome = if import.is_ok() { JobOutcome::Success } else { JobOutcome::Failure };
+run.finish(outcome);
+```
+
+Each finished run increments `job_runs_total` and records
+`job_duration_seconds`, both labelled by `job` and `outcome`. A success also
+sets `job_last_success_timestamp_seconds{job}` to the current Unix time. At
+startup, call `record_last_success` with the job's persisted last success, so
+a restart does not make the job look like it never succeeded.

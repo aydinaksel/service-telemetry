@@ -1,3 +1,4 @@
+mod jobs;
 mod requests;
 
 use std::io;
@@ -12,6 +13,10 @@ use metrics_exporter_prometheus::{
 use tokio::net::TcpListener;
 use tracing::{Level, event};
 
+pub use jobs::{
+    JOB_DURATION_SECONDS, JOB_LAST_SUCCESS_TIMESTAMP_SECONDS, JOB_RUNS_TOTAL, JobOutcome, JobRun,
+    record_last_success,
+};
 pub use requests::{
     REQUEST_DURATION_SECONDS, REQUESTS_TOTAL, RequestMetrics, RequestMetricsLayer, UNMATCHED_ROUTE,
 };
