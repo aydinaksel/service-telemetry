@@ -1,0 +1,89 @@
+[package]
+name = "service-telemetry"
+version = "0.1.0"
+edition = "2024"
+description = "Logging and Prometheus metrics shared by Aydin Aksel's services"
+license = "MIT"
+repository = "https://github.com/aydinaksel/service-telemetry"
+
+[features]
+metrics = ["dep:metrics", "dep:metrics-exporter-prometheus", "dep:axum", "dep:tokio", "dep:tower", "dep:thiserror"]
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "matched-path"], optional = true }
+metrics = { version = "0.24", optional = true }
+metrics-exporter-prometheus = { version = "0.18.3", default-features = false, optional = true }
+serde_json = "1"
+thiserror = { version = "2", optional = true }
+tokio = { version = "1", features = ["net", "time", "rt"], optional = true }
+tower = { version = "0.5", default-features = false, optional = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[lints.rust]
+unused_qualifications = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+
+# Don't panic
+unwrap_used = "deny"
+expect_used = "deny"
+get_unwrap = "deny"
+unwrap_in_result = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+arithmetic_side_effects = "deny"
+unchecked_time_subtraction = "deny"
+exit = "deny"
+as_conversions = "deny"
+
+# Don't fail silently
+let_underscore_future = "deny"
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+map_err_ignore = "deny"
+assertions_on_result_states = "deny"
+
+# Don't hold locks across await points
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
+if_let_mutex = "deny"
+large_futures = "deny"
+
+# Don't mishandle memory
+mem_forget = "deny"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+unnecessary_safety_doc = "deny"
+unnecessary_safety_comment = "deny"
+
+# Don't compare or cast numbers carelessly
+float_cmp = "deny"
+float_cmp_const = "deny"
+lossy_float_literal = "deny"
+cast_sign_loss = "deny"
+invalid_upcast_comparisons = "deny"
+
+# Easy wins
+rc_mutex = "deny"
+debug_assert_with_mut_call = "deny"
+iter_not_returning_iterator = "deny"
+expl_impl_clone_on_copy = "deny"
+infallible_try_from = "deny"
+dbg_macro = "deny"
+
+# Suppressions must carry a reason
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+tower = { version = "0.5", features = ["util"] }
