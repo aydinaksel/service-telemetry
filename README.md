@@ -4,7 +4,7 @@ Logging and Prometheus metrics shared by my services.
 
 ```toml
 [dependencies]
-service-telemetry = { git = "https://github.com/aydinaksel/service-telemetry", tag = "v0.1.0", features = ["metrics"] }
+service-telemetry = { git = "https://github.com/aydinaksel/service-telemetry", tag = "v0.1.1", features = ["metrics"] }
 ```
 
 ## Logging
@@ -51,6 +51,9 @@ Label values must come from small fixed sets: a route template, a query name,
 a job name, an outcome. Never use an ID, a customer, a path, or free text.
 Every distinct value is a new time series that Prometheus keeps.
 
+Never name a label `job` or `instance`. Prometheus sets those on every scraped
+series, and renames a clashing label to `exported_job` or `exported_instance`.
+
 ### Jobs
 
 ```rust,ignore
@@ -60,7 +63,7 @@ run.finish(outcome);
 ```
 
 Each finished run increments `job_runs_total` and records
-`job_duration_seconds`, both labelled by `job` and `outcome`. A success also
-sets `job_last_success_timestamp_seconds{job}` to the current Unix time. At
-startup, call `record_last_success` with the job's persisted last success, so
-a restart does not make the job look like it never succeeded.
+`job_duration_seconds`, both labelled by `job_name` and `outcome`. A success
+also sets `job_last_success_timestamp_seconds{job_name}` to the current Unix
+time. At startup, call `record_last_success` with the job's persisted last
+success, so a restart does not make the job look like it never succeeded.

@@ -4,7 +4,7 @@ pub const JOB_RUNS_TOTAL: &str = "job_runs_total";
 pub const JOB_DURATION_SECONDS: &str = "job_duration_seconds";
 pub const JOB_LAST_SUCCESS_TIMESTAMP_SECONDS: &str = "job_last_success_timestamp_seconds";
 
-const JOB_LABEL: &str = "job";
+const JOB_LABEL: &str = "job_name";
 const OUTCOME_LABEL: &str = "outcome";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -89,19 +89,34 @@ mod tests {
         let text = scrape(recorder.handle()).await;
 
         assert!(
-            text.contains(r#"job_runs_total{job="floor_and_decor_sync",outcome="success"} 1"#),
+            text.contains(r#"job_runs_total{job_name="floor_and_decor_sync",outcome="success"} 1"#),
             "{text}"
         );
         assert!(
-            text.contains(r#"job_runs_total{job="floor_and_decor_sync",outcome="failure"} 2"#),
+            text.contains(r#"job_runs_total{job_name="floor_and_decor_sync",outcome="failure"} 2"#),
             "{text}"
         );
         assert!(
             text.contains(
-                r#"job_duration_seconds_count{job="floor_and_decor_sync",outcome="failure"} 2"#
+                r#"job_duration_seconds_count{job_name="floor_and_decor_sync",outcome="failure"} 2"#
             ),
             "{text}"
         );
+    }
+
+    #[tokio::test]
+    async fn labels_never_clash_with_the_scrape_target_labels() {
+        let recorder = test_recorder();
+        ::metrics::with_local_recorder(&recorder, || {
+            JobRun::start("floor_and_decor_sync").finish(JobOutcome::Success);
+        });
+
+        let text = scrape(recorder.handle()).await;
+
+        for reserved_label in ["job", "instance"] {
+            assert!(!text.contains(&format!("{{{reserved_label}=\"")), "{text}");
+            assert!(!text.contains(&format!(",{reserved_label}=\"")), "{text}");
+        }
     }
 
     #[tokio::test]
@@ -116,7 +131,7 @@ mod tests {
 
         assert!(
             text.contains(&format!(
-                r#"job_last_success_timestamp_seconds{{job="eta_etd_handler"}} {PERSISTED_SUCCESS_UNIX_SECONDS}"#
+                r#"job_last_success_timestamp_seconds{{job_name="eta_etd_handler"}} {PERSISTED_SUCCESS_UNIX_SECONDS}"#
             )),
             "{text}"
         );
@@ -134,7 +149,9 @@ mod tests {
         let recorded_unix_seconds: f64 = text
             .lines()
             .find_map(|line| {
-                line.strip_prefix(r#"job_last_success_timestamp_seconds{job="source_image_sync"} "#)
+                line.strip_prefix(
+                    r#"job_last_success_timestamp_seconds{job_name="source_image_sync"} "#,
+                )
             })
             .unwrap()
             .parse()
