@@ -36,13 +36,13 @@ const UPKEEP_INTERVAL: Duration = Duration::from_secs(5);
 pub enum InstallError {
     #[error("metrics address {0} is not a loopback address")]
     NotLoopback(SocketAddr),
-    #[error("binding the metrics listener to {address}")]
+    #[error("binding the metrics listener to {address}: {source}")]
     Bind {
         address: SocketAddr,
         #[source]
         source: io::Error,
     },
-    #[error("configuring the Prometheus recorder")]
+    #[error("configuring the Prometheus recorder: {0}")]
     Build(#[from] BuildError),
     #[error("a metrics recorder is already installed")]
     AlreadyInstalled(#[from] ::metrics::SetRecorderError<PrometheusRecorder>),
