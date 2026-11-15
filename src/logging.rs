@@ -1,3 +1,8 @@
+#[cfg(feature = "otlp")]
+mod fields;
+#[cfg(feature = "otlp")]
+mod otlp;
+
 use std::fmt;
 use std::io::{self, IsTerminal};
 
@@ -11,29 +16,59 @@ use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
 
 const EVENT_NAME_KEY: &str = "event";
 
-pub fn init(default_filter: &str) -> Result<(), TryInitError> {
+#[derive(Debug, thiserror::Error)]
+pub enum InitError {
+    #[error("installing the tracing subscriber: {0}")]
+    Subscriber(#[from] TryInitError),
+    #[cfg(feature = "otlp")]
+    #[error("building the OTLP log exporter, logging to standard error only: {0}")]
+    Exporter(#[from] opentelemetry_otlp::ExporterBuildError),
+}
+
+#[derive(Debug)]
+#[must_use = "dropping Logging stops exporting logs, so hold it until main returns"]
+pub struct Logging {
+    #[cfg(feature = "otlp")]
+    #[cfg_attr(
+        feature = "otlp",
+        expect(dead_code, reason = "held so that dropping Logging flushes the export")
+    )]
+    export: Option<otlp::Export>,
+}
+
+impl Logging {
+    fn standard_error_only() -> Self {
+        Self {
+            #[cfg(feature = "otlp")]
+            export: None,
+        }
+    }
+}
+
+pub fn init(default_filter: &str) -> Result<Logging, InitError> {
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter));
+    let standard_error_is_terminal = io::stderr().is_terminal();
+    #[cfg(feature = "otlp")]
+    if otlp::endpoint_configured() {
+        return otlp::init(filter, standard_error_is_terminal);
+    }
+    let format = if standard_error_is_terminal {
+        Format::Text { colored: true }
+    } else {
+        Format::Json
+    };
     tracing_subscriber::registry()
         .with(filter)
-        .with(layer(Format::for_stderr(), io::stderr))
-        .try_init()
+        .with(layer(format, io::stderr))
+        .try_init()?;
+    Ok(Logging::standard_error_only())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Format {
-    Text,
+    Text { colored: bool },
     Json,
-}
-
-impl Format {
-    fn for_stderr() -> Self {
-        if io::stderr().is_terminal() {
-            Self::Text
-        } else {
-            Self::Json
-        }
-    }
 }
 
 fn layer<S, W>(format: Format, writer: W) -> Box<dyn Layer<S> + Send + Sync>
@@ -42,9 +77,9 @@ where
     W: for<'writer> MakeWriter<'writer> + Send + Sync + 'static,
 {
     match format {
-        Format::Text => tracing_subscriber::fmt::layer()
+        Format::Text { colored } => tracing_subscriber::fmt::layer()
             .with_writer(writer)
-            .with_ansi(true)
+            .with_ansi(colored)
             .boxed(),
         Format::Json => tracing_subscriber::fmt::layer()
             .with_writer(writer)
@@ -202,7 +237,7 @@ mod tests {
 
     #[test]
     fn text_line_is_colored_and_keeps_fields() {
-        let output = capture(Format::Text, emit_transfer_heartbeat);
+        let output = capture(Format::Text { colored: true }, emit_transfer_heartbeat);
 
         assert!(
             output.contains('\u{1b}'),
@@ -213,7 +248,7 @@ mod tests {
 
     #[test]
     fn second_init_returns_an_error_instead_of_panicking() {
-        init("info").unwrap();
+        let _logging = init("info").unwrap();
 
         init("info").unwrap_err();
     }

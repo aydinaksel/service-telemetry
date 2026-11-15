@@ -4,24 +4,43 @@ Logging and Prometheus metrics shared by my services.
 
 ```toml
 [dependencies]
-service-telemetry = { git = "https://github.com/aydinaksel/service-telemetry", tag = "v0.1.1", features = ["metrics"] }
+service-telemetry = { git = "https://github.com/aydinaksel/service-telemetry", tag = "v0.2.0", features = ["metrics", "otlp"] }
 ```
 
 ## Logging
 
 ```rust,ignore
-service_telemetry::logging::init("info")?;
+let _logging = service_telemetry::logging::init("info")?;
 ```
 
-Events go to standard error. `RUST_LOG` replaces the default filter when it is
-set. On a terminal each event is colored text. Anywhere else, such as under
-systemd, each event is one JSON object per line: the event name under `event`,
-its fields at the top level with their dotted names, and the current span's
-fields under `span`. Loki parses the line at query time, so
-`edi.unfinished_count` becomes `edi_unfinished_count` in Grafana.
-
-Emit events with `tracing::event!`, a `name:` and a message template, as
+Hold the returned `Logging` until `main` returns: dropping it flushes the logs
+still waiting to be exported. `RUST_LOG` replaces the default filter when it is
+set. Emit events with `tracing::event!`, a `name:` and a message template, as
 M-LOG-STRUCTURED describes.
+
+### Over OTLP
+
+With the `otlp` feature, setting `OTEL_EXPORTER_OTLP_ENDPOINT` (or
+`OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`) sends every event as an OTLP/HTTP log
+record, and `OTEL_SERVICE_NAME` names the service. Each record carries:
+
+- the message with its placeholders filled in as the body, so
+  `EDI transfer is {edi.switch_state}` arrives as `EDI transfer is running`,
+- every field as an attribute under its dotted name, keeping its type,
+- the event name as `event`, and the template as `message_template`.
+
+Loki stores the body as the log line and the attributes as structured
+metadata, so Grafana shows the readable sentence and still filters on
+`edi_unfinished_count`. Standard error keeps a plain text copy for the host's
+journal. A panic is logged as a `process.panic` error and flushed before the
+process unwinds.
+
+### Standard Error Only
+
+Without an OTLP endpoint, events go to standard error alone. On a terminal
+each event is colored text. Anywhere else, such as under systemd, each event
+is one JSON object per line: the event name under `event`, its fields at the
+top level with their dotted names, and the current span's fields under `span`.
 
 ## Metrics
 

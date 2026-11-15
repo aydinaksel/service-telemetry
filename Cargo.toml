@@ -1,6 +1,6 @@
 [package]
 name = "service-telemetry"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Logging and Prometheus metrics shared by Aydin Aksel's services"
@@ -8,14 +8,18 @@ license = "MIT"
 repository = "https://github.com/aydinaksel/service-telemetry"
 
 [features]
-metrics = ["dep:metrics", "dep:metrics-exporter-prometheus", "dep:axum", "dep:tokio", "dep:tower", "dep:thiserror"]
+metrics = ["dep:metrics", "dep:metrics-exporter-prometheus", "dep:axum", "dep:tokio", "dep:tower"]
+otlp = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "matched-path"], optional = true }
 metrics = { version = "0.24", optional = true }
 metrics-exporter-prometheus = { version = "0.18.3", default-features = false, optional = true }
+opentelemetry = { version = "0.33", default-features = false, features = ["logs"], optional = true }
+opentelemetry-otlp = { version = "0.33", default-features = false, features = ["logs", "http-proto", "reqwest-blocking-client"], optional = true }
+opentelemetry_sdk = { version = "0.33", default-features = false, features = ["logs"], optional = true }
 serde_json = "1"
-thiserror = { version = "2", optional = true }
+thiserror = "2"
 tokio = { version = "1", features = ["net", "time", "rt"], optional = true }
 tower = { version = "0.5", default-features = false, optional = true }
 tracing = "0.1"
@@ -86,5 +90,6 @@ allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
 
 [dev-dependencies]
+opentelemetry_sdk = { version = "0.33", default-features = false, features = ["logs", "testing"] }
 tokio = { version = "1", features = ["macros", "rt"] }
 tower = { version = "0.5", features = ["util"] }
